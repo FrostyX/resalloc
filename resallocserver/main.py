@@ -37,12 +37,20 @@ try:
     class wrap(SocketServer.ThreadingMixIn, SimpleXMLRPCServer.SimpleXMLRPCServer):
         pass
     CLSXMLRPC = wrap
+    _BaseRequestHandler = SimpleXMLRPCServer.SimpleXMLRPCRequestHandler
 except:
     import xmlrpc.server
     import socketserver
     class wrap(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
         pass
     CLSXMLRPC = wrap
+    _BaseRequestHandler = xmlrpc.server.SimpleXMLRPCRequestHandler
+
+
+class ResallocXMLRPCRequestHandler(_BaseRequestHandler):
+    def do_POST(self):
+        api.threadLocal.socket = self.connection
+        super().do_POST()
 
 
 class AtomicEvent(object):
@@ -91,7 +99,8 @@ class Server(threading.Thread):
         config = app.config
         # prefer "hostname" over "host", and fallback to "localhost"
         hostname = config.get("hostname") or config.get("host") or "localhost"
-        self.server = CLSXMLRPC((hostname, config['port']))
+        self.server = CLSXMLRPC((hostname, config['port']),
+                                requestHandler=ResallocXMLRPCRequestHandler)
         self.server.allow_none = True
         self.server.daemon_threads = True
         self.server.register_introspection_functions()

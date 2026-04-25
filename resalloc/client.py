@@ -20,19 +20,27 @@ except ImportError:
 
 class _WrappedXMLRPCClient(object):
     def __init__(self, connection_string, survive_server_restart):
-        self._conn = C_XMLRPC(connection_string)
+        self.connection_string = connection_string
         self.survive_server_restart = survive_server_restart
+        self.init_connection()
+
+    def init_connection(self):
+        self._conn = C_XMLRPC(self.connection_string)
 
     def call(self, name, *args):
         """
         Call the ``name`` xmlrpc method with ``*args``, and retry automatically
         if the ``survive_server_restart`` attribute is True.
         """
+        # socket.setdefaulttimeout(5)
         fcall = getattr(self._conn, name)
         # we can not pass kwargs here, xmlrpc doesn't seem to support that
         while True:
             try:
                 return fcall(*args)
+            # except TimeoutError as ex:
+            #     self.init_connection()
+            #     print(str(ex), file=sys.stderr)
             except socket.error as sock_err:
                 print(str(sock_err), file=sys.stderr)
                 if not self.survive_server_restart:

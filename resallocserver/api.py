@@ -15,6 +15,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import select
 import sys
 import time
 from resallocserver import models
@@ -94,6 +95,12 @@ class ServerAPI(object):
                 ticket = session.query(models.Ticket).get(ticket_id)
                 if ticket.resource:
                     return ticket.resource.data
+
+            sock = getattr(threadLocal, 'socket', None)
+            if sock:
+                readable, _, _ = select.select([sock], [], [], 0)
+                if readable:
+                    return None
 
             with self.sync.resource_ready:
                 while self.sync.resource_ready.wait(timeout=10):
